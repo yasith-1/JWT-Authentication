@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="si">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JWT Authentication — Complete Visual Guide</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&family=Sora:wght@300;400;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- HEADER -->
+    <header>
+      <div class="eyebrow">Security · Authentication · Spring Boot · React</div>
+      <h1>JWT Authentication<br>Complete Visual Guide</h1>
+      <p class="lead">Session-Based Auth සිට JWT දක්වා — ඉතිහාසය, animated flow, code examples සහ best practices
+        සම්පූර්ණයෙන්</p>
+    </header>
+
+    <nav class="nav">
+      <a href="#history">01 ඉතිහාසය</a>
+      <a href="#simulator">02 Flow Simulator</a>
+      <a href="#code">03 Code Examples</a>
+      <a href="#tokens">04 Token Lifetime</a>
+      <a href="#storage">05 Storage</a>
+      <a href="#compare">06 Session vs JWT</a>
+      <a href="#practices">07 Best Practices</a>
+    </nav>
+
+    <!-- ═══ 01 HISTORY ═══ -->
+    <section class="section" id="history">
+      <div class="sec-label">01 — ඉතිහාසය · History</div>
+      <div class="card" style="margin-bottom:14px;">
+        <p style="font-size:13px;color:var(--muted);line-height:1.85;margin-bottom:18px;">
+          ඉස්සර (සහ තාමත් සමහර තැන්වල) Hotel POS System-ල Cashier login වෙද්දී, <strong
+            style="color:var(--text);">Backend Server</strong> ඒ Session Memory-ල හෝ Database-ල store කරලා <strong
+            style="color:var(--text);">Session ID</strong> -ක් Browser Cookie-ල දෙනවා. ඊළඟ request-ලාදී server ඒ memory
+          scan කරලා user validate කරනවා.
+        </p>
+        <div class="g3">
+          <div style="background:var(--bg3);border:1px solid rgba(248,113,113,.2);border-radius:10px;padding:14px;">
+            <div
+              style="font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:8px;">
+              ❌ Scalability ගැටලුව</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.65;">Server 1-ල Login → Server 2-ට request
+              ගියොත් Session නෑ → Fail! Servers 3ක් (Load Balancing) run කරද්දී Redis Cache අමතරව දාන්න වෙනවා.</div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid rgba(248,113,113,.2);border-radius:10px;padding:14px;">
+            <div
+              style="font-size:11px;color:var(--red);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:8px;">
+              ❌ CORS & Mobile ගැටලුව</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.65;">React/Next.js frontend වෙනම domain-ල run
+              වෙද්දී Cookies cross-origin send කිරීම ගැටලු සහිතයි. Mobile Apps-ල Cookies හරිට work කරන්නේ නෑ.</div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid rgba(52,211,153,.2);border-radius:10px;padding:14px;">
+            <div
+              style="font-size:11px;color:var(--green);font-family:'JetBrains Mono',monospace;font-weight:600;margin-bottom:8px;">
+              ✓ JWT Solution</div>
+            <div style="font-size:12px;color:var(--muted);line-height:1.65;">Token-Based = Stateless. Server-side state
+              නෑ. ඕනෑම Server, Secret Key-ල Signature verify කරලා access දෙනවා. Scale freely!</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 02 SIMULATOR ═══ -->
+    <section class="section" id="simulator">
+      <div class="sec-label">02 — Live Flow Simulator · Hotel POS Example</div>
+
+      <div class="canvas">
+        <div class="nodes">
+          <div class="node" id="nc">
+            <span class="node-icon">🖥️</span>
+            <div class="node-name">Client</div>
+            <div class="node-sub">Cashier / Browser / App</div>
+            <div class="node-st" id="nc-st" style="color:var(--green);"></div>
+          </div>
+          <div class="node" id="ns" style="position:relative;">
+            <span class="node-icon">⚙️</span>
+            <div class="node-name">Backend Server</div>
+            <div class="node-sub">Spring Boot</div>
+            <div class="sc-badge" id="sc-badge">✦ Any of 3 servers ✓</div>
+            <div class="node-st" id="ns-st" style="color:var(--orange);"></div>
+          </div>
+          <div class="node" id="nd" style="position:relative;">
+            <div class="db-x" id="db-x">✕</div>
+            <span class="node-icon">🗄️</span>
+            <div class="node-name">Database</div>
+            <div class="node-sub">User Store</div>
+            <div class="node-st" id="nd-st" style="color:var(--red);"></div>
+          </div>
+        </div>
+
+        <div class="track">
+          <div class="tline"></div>
+          <span class="tlabel-l">CLIENT</span>
+          <span class="tlabel-r">SERVER</span>
+          <div class="pkt pkt-login" id="p-login" style="left:0;">▶ POST /api/auth/login {username, password}</div>
+          <div class="pkt pkt-jwt" id="p-ret" style="right:0;">◀ JWT Token 🔐 + HttpOnly Cookie</div>
+          <div class="pkt pkt-api" id="p-api" style="left:0;">▶ GET /api/bills Authorization: Bearer JWT</div>
+        </div>
+        <div class="track">
+          <div class="tline"></div>
+          <span class="tlabel-l" style="left:33%">SERVER</span>
+          <span class="tlabel-r">DATABASE</span>
+          <div class="pkt pkt-db" id="p-db" style="left:33%;">▶ SELECT * FROM users WHERE username=? 🔍</div>
+          <div class="pkt pkt-ver" id="p-ver" style="left:33%;">▶ Verify Signature only ✓ (No DB Query!)</div>
+        </div>
+
+        <div class="sinfo">
+          <div class="smeta">
+            <span class="sbadge bd-blue" id="sbadge">OVERVIEW</span>
+            <span class="running" id="running">● RUNNING</span>
+          </div>
+          <div class="stitle" id="stitle">JWT Authentication — Hotel POS System</div>
+          <div class="sdesc" id="sdesc">"Play All" ඔබලා JWT flow step-by-step animate වෙනවා බලන්න. හෝ Next / Back
+            buttons use කරන්න.</div>
+        </div>
+
+        <div class="ctrl">
+          <div class="dots" id="dots">
+            <div class="dot active" onclick="gS(0)"></div>
+            <div class="dot" onclick="gS(1)"></div>
+            <div class="dot" onclick="gS(2)"></div>
+            <div class="dot" onclick="gS(3)"></div>
+            <div class="dot" onclick="gS(4)"></div>
+            <div class="dot" onclick="gS(5)"></div>
+          </div>
+          <button class="btn" id="b-prev" onclick="prev()" disabled>← Back</button>
+          <button class="btn btn-p" id="b-next" onclick="nxt()">Next →</button>
+          <button class="btn-play" id="b-play" onclick="playAll()">▶ Play All</button>
+        </div>
+      </div>
+
+      <div class="jwt-box" id="jwt-box">
+        <div class="sec-label" style="margin-bottom:12px;">JWT Token Structure — Header . Payload . Signature</div>
+        <div class="jwt-str">
+          <span style="color:var(--hdr);">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9</span>.<span
+            style="color:var(--pay);">eyJ1c2VySWQiOiIxMjMiLCJyb2xlIjoiQ2FzaGllciIsImV4cCI6MTcwMDAwMTkwMH0</span>.<span
+            style="color:var(--sig);">SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c</span>
+        </div>
+        <div class="jwt-parts">
+          <div class="jp jp-h">
+            <div class="jp-lbl">① Header</div>
+            <div class="jp-val">alg: "HS256"<br>typ: "JWT"</div>
+          </div>
+          <div class="jp jp-p">
+            <div class="jp-lbl">② Payload (Base64 — public!)</div>
+            <div class="jp-val">userId: "123"<br>role: "Cashier"<br>exp: 1700001900<br><span style="color:var(--red);">⚠
+                Passwords දාන්නේ නෑ!</span></div>
+          </div>
+          <div class="jp jp-s">
+            <div class="jp-lbl">③ Signature (Secret)</div>
+            <div class="jp-val">HMACSHA256(<br>&nbsp;header + "." + payload,<br>&nbsp;<span
+                style="color:var(--orange);">SECRET_KEY</span><br>)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 03 CODE EXAMPLES ═══ -->
+    <section class="section" id="code">
+      <div class="sec-label">03 — Code Examples · Spring Boot + JavaScript</div>
+
+      <!-- STEP A: Maven -->
+      <h3 class="step-h">Step 1 — Maven Dependency (pom.xml)</h3>
+      <div class="code-tabs">
+        <div class="ctab active" onclick="showTab('td-a',this)">pom.xml</div>
+      </div>
+      <div class="code-panel">
+        <div class="code-header">
+          <span class="code-fname">pom.xml</span>
+          <div style="display:flex;gap:8px;align-items:center;"><span class="code-lang lang-xml">XML</span><button
+              class="copy-btn" onclick="copyCode('c-dep',this)">Copy</button></div>
+        </div>
+        <div class="code-pane active" id="td-a">
+          <pre><code id="c-dep"><span class="cm">&lt;!-- JWT Library — io.jsonwebtoken (JJWT) --&gt;</span>
+<span class="tag">&lt;dependency&gt;</span>
+    <span class="tag">&lt;groupId&gt;</span>io.jsonwebtoken<span class="tag">&lt;/groupId&gt;</span>
+    <span class="tag">&lt;artifactId&gt;</span>jjwt-api<span class="tag">&lt;/artifactId&gt;</span>
+    <span class="tag">&lt;version&gt;</span>0.12.3<span class="tag">&lt;/version&gt;</span>
+<span class="tag">&lt;/dependency&gt;</span>
+<span class="tag">&lt;dependency&gt;</span>
+    <span class="tag">&lt;groupId&gt;</span>io.jsonwebtoken<span class="tag">&lt;/groupId&gt;</span>
+    <span class="tag">&lt;artifactId&gt;</span>jjwt-impl<span class="tag">&lt;/artifactId&gt;</span>
+    <span class="tag">&lt;version&gt;</span>0.12.3<span class="tag">&lt;/version&gt;</span>
+    <span class="tag">&lt;scope&gt;</span>runtime<span class="tag">&lt;/scope&gt;</span>
+<span class="tag">&lt;/dependency&gt;</span>
+<span class="tag">&lt;dependency&gt;</span>
+    <span class="tag">&lt;groupId&gt;</span>io.jsonwebtoken<span class="tag">&lt;/groupId&gt;</span>
+    <span class="tag">&lt;artifactId&gt;</span>jjwt-jackson<span class="tag">&lt;/artifactId&gt;</span>
+    <span class="tag">&lt;version&gt;</span>0.12.3<span class="tag">&lt;/version&gt;</span>
+    <span class="tag">&lt;scope&gt;</span>runtime<span class="tag">&lt;/scope&gt;</span>
+<span class="tag">&lt;/dependency&gt;</span></code></pre>
+        </div>
+      </div>
+      <div class="explain">
+        <strong>මෙය කරන දේ:</strong> JWT create, sign, verify කිරීමට <strong>JJWT 0.12.3</strong> library Spring Boot
+        project-ල add කරනවා.
+        <code style="font-family:'JetBrains Mono',monospace;color:var(--orange);">jjwt-api</code> = interfaces,
+        <code style="font-family:'JetBrains Mono',monospace;color:var(--orange);">jjwt-impl</code> = runtime
+        implementation,
+        <code style="font-family:'JetBrains Mono',monospace;color:var(--orange);">jjwt-jackson</code> = JSON parsing.
+        <strong>Manual implementation නොකරන්නේ security vulnerabilities avoid කිරීමට.</strong>
+      </div>
+
+      <!-- STEP B: Config + JwtUtil -->
+      <h3 class="step-h">Step 2 — Secret Key Configuration + JWT Utility Class</h3>
+      <div class="code-tabs">
+        <div class="ctab active" onclick="showTabGrp('tb-prop','grp-b',this)">application.properties</div>
+        <div class="ctab" onclick="showTabGrp('tb-util','grp-b',this)">JwtUtil.java</div>
+      </div>
+      <div class="code-panel" id="grp-b">
+        <div id="tb-prop" class="code-pane active">
+          <div class="code-header"><span class="code-fname">src/main/resources/application.properties</span>
+            <div style="display:flex;gap:8px;"><span class="code-lang lang-xml">PROPS</span><button class="copy-btn"
+                onclick="copyCode('c-prop',this)">Copy</button></div>
+          </div>
+          <pre><code id="c-prop"><span class="cm"># ⚠ Code-ල hardcode නොකරන්න — .env / environment variable use කරන්න</span>
+<span class="prop">jwt.secret</span><span class="op">=</span><span class="str">myVeryLongAndSecureSecretKeyThatIsAtLeast256BitsLong!#@$</span>
+
+<span class="prop">jwt.access-token-expiration</span><span class="op">=</span><span class="num">900000</span>    <span class="cm"># 15 minutes = 900,000 ms</span>
+<span class="prop">jwt.refresh-token-expiration</span><span class="op">=</span><span class="num">604800000</span> <span class="cm"># 7 days    = 604,800,000 ms</span></code></pre>
+        </div>
+        <div id="tb-util" class="code-pane">
+          <div class="code-header"><span class="code-fname">JwtUtil.java</span>
+            <div style="display:flex;gap:8px;"><span class="code-lang lang-java">JAVA</span><button class="copy-btn"
+                onclick="copyCode('c-util',this)">Copy</button></div>
+          </div>
+          <pre><code id="c-util"><span class="ann">@Component</span>
+<span class="kw">public class</span> <span class="cls">JwtUtil</span> {
+
+    <span class="ann">@Value</span>(<span class="str">"${jwt.secret}"</span>)
+    <span class="kw">private</span> <span class="cls">String</span> secretKey;
+
+    <span class="ann">@Value</span>(<span class="str">"${jwt.access-token-expiration}"</span>)
+    <span class="kw">private long</span> accessExpiry;  <span class="cm">// 15 min in ms</span>
+
+    <span class="ann">@Value</span>(<span class="str">"${jwt.refresh-token-expiration}"</span>)
+    <span class="kw">private long</span> refreshExpiry; <span class="cm">// 7 days in ms</span>
+
+    <span class="cm">// ① application.properties-ල ඇති secret string → HMAC-SHA256 Key</span>
+    <span class="kw">private</span> <span class="cls">SecretKey</span> <span class="fn">getSigningKey</span>() {
+        <span class="kw">return</span> Keys.<span class="fn">hmacShaKeyFor</span>(secretKey.<span class="fn">getBytes</span>(<span class="cls">StandardCharsets</span>.UTF_8));
+    }
+
+    <span class="cm">// ② Access Token — userId + role payload-ල දාලා JWT create</span>
+    <span class="kw">public</span> <span class="cls">String</span> <span class="fn">generateAccessToken</span>(<span class="cls">String</span> userId, <span class="cls">String</span> role) {
+        <span class="kw">return</span> Jwts.<span class="fn">builder</span>()
+                .<span class="fn">subject</span>(userId)
+                .<span class="fn">claim</span>(<span class="str">"role"</span>, role)        <span class="cm">// Admin, Cashier etc.</span>
+                .<span class="fn">issuedAt</span>(<span class="kw">new</span> <span class="cls">Date</span>())
+                .<span class="fn">expiration</span>(<span class="kw">new</span> <span class="cls">Date</span>(<span class="cls">System</span>.<span class="fn">currentTimeMillis</span>() + accessExpiry))
+                .<span class="fn">signWith</span>(<span class="fn">getSigningKey</span>())  <span class="cm">// Secret Key-ල sign!</span>
+                .<span class="fn">compact</span>();               <span class="cm">// → "xxxxx.yyyyy.zzzzz"</span>
+    }
+
+    <span class="cm">// ③ Refresh Token — userId only, longer expiry</span>
+    <span class="kw">public</span> <span class="cls">String</span> <span class="fn">generateRefreshToken</span>(<span class="cls">String</span> userId) {
+        <span class="kw">return</span> Jwts.<span class="fn">builder</span>()
+                .<span class="fn">subject</span>(userId)
+                .<span class="fn">issuedAt</span>(<span class="kw">new</span> <span class="cls">Date</span>())
+                .<span class="fn">expiration</span>(<span class="kw">new</span> <span class="cls">Date</span>(<span class="cls">System</span>.<span class="fn">currentTimeMillis</span>() + refreshExpiry))
+                .<span class="fn">signWith</span>(<span class="fn">getSigningKey</span>())
+                .<span class="fn">compact</span>();
+    }
+
+    <span class="cm">// ④ Token valid ද? Signature OK? Expired නෑ? — Database query නෑ!</span>
+    <span class="kw">public boolean</span> <span class="fn">isTokenValid</span>(<span class="cls">String</span> token) {
+        <span class="kw">try</span> {
+            Jwts.<span class="fn">parser</span>().<span class="fn">verifyWith</span>(<span class="fn">getSigningKey</span>()).<span class="fn">build</span>()
+               .<span class="fn">parseSignedClaims</span>(token);
+            <span class="kw">return true</span>;
+        } <span class="kw">catch</span> (<span class="cls">JwtException</span> e) { <span class="kw">return false</span>; }
+    }
+
+    <span class="cm">// ⑤ Token-ල userId extract</span>
+    <span class="kw">public</span> <span class="cls">String</span> <span class="fn">extractUserId</span>(<span class="cls">String</span> token) {
+        <span class="kw">return</span> Jwts.<span class="fn">parser</span>().<span class="fn">verifyWith</span>(<span class="fn">getSigningKey</span>()).<span class="fn">build</span>()
+                .<span class="fn">parseSignedClaims</span>(token).<span class="fn">getPayload</span>().<span class="fn">getSubject</span>();
+    }
+
+    <span class="cm">// ⑥ Token-ල role extract</span>
+    <span class="kw">public</span> <span class="cls">String</span> <span class="fn">extractRole</span>(<span class="cls">String</span> token) {
+        <span class="kw">return</span> Jwts.<span class="fn">parser</span>().<span class="fn">verifyWith</span>(<span class="fn">getSigningKey</span>()).<span class="fn">build</span>()
+                .<span class="fn">parseSignedClaims</span>(token).<span class="fn">getPayload</span>()
+                .<span class="fn">get</span>(<span class="str">"role"</span>, <span class="cls">String</span>.<span class="kw">class</span>);
+    }
+}</code></pre>
+        </div>
+      </div>
+      <div class="explain">
+        <strong>JwtUtil.java — සම්පූර්ණ explanation:</strong>
+        <ul>
+          <li><span class="ln">getSigningKey()</span> application.properties Secret String-ල HMAC-SHA256 cryptographic
+            key-ල convert කරනවා. Token sign කිරීමටත් verify කිරීමටත් <strong>same key</strong> use. .env-ල store කිරීම =
+            production best practice.</li>
+          <li><span class="ln">generateAccessToken()</span> userId + role payload-ල දාලා, 15 min expiry set කරලා, Secret
+            Key-ල sign කරලා <code style="color:var(--orange);font-size:11px;">"xxxxx.yyyyy.zzzzz"</code> JWT string
+            return කරනවා. <strong>Passwords, Credit Card numbers payload-ල දාන්නේ නෑ</strong> — Base64 decode කරන්නට ඕනෑ
+            කෙනෙකුට හැකිය!</li>
+          <li><span class="ln">generateRefreshToken()</span> Access Token expire වෙද්දී නව Access Token ගන්නට use කරන
+            Refresh Token. Expiry = 7 days. HttpOnly Cookie-ල store.</li>
+          <li><span class="ln">isTokenValid()</span> <strong>Database query නෑ!</strong> JJWT library-ල Secret Key-ල
+            signature verify + expiry check. Tampered token, expired token = JwtException → false return.</li>
+          <li><span class="ln">extractUserId() / extractRole()</span> Valid token-ල Payload-ල userId සහ role read කරනවා.
+            Spring Security context-ල set කිරීමට use.</li>
+        </ul>
+      </div>
+
+      <!-- STEP C: Login Endpoint -->
+      <h3 class="step-h">Step 3 — Login Controller (Token Generate + Return)</h3>
+      <div class="code-tabs">
+        <div class="ctab active" onclick="showTabGrp('tc-ctrl','grp-c',this)">AuthController.java</div>
+        <div class="ctab" onclick="showTabGrp('tc-dto','grp-c',this)">DTOs</div>
+      </div>
+      <div class="code-panel" id="grp-c">
+        <div id="tc-ctrl" class="code-pane active">
+          <div class="code-header"><span class="code-fname">AuthController.java</span>
+            <div style="display:flex;gap:8px;"><span class="code-lang lang-java">JAVA</span><button class="copy-btn"
+                onclick="copyCode('c-ctrl',this)">Copy</button></div>
+          </div>
+          <pre><code id="c-ctrl"><span class="ann">@RestController</span>
+<span class="ann">@RequestMapping</span>(<span class="str">"/api/auth"</span>)
+<span class="kw">public class</span> <span class="cls">AuthController</span> {
+
+    <span class="kw">private final</span> <span class="cls">UserService</span> userService;
+    <span class="kw">private final</span> <span class="cls">JwtUtil</span> jwtUtil;
+
+    <span class="cm">// ① POST /api/auth/login — Cashier credentials receive</span>
+    <span class="ann">@PostMapping</span>(<span class="str">"/login"</span>)
+    <span class="kw">public</span> <span class="cls">ResponseEntity</span>&lt;<span class="cls">AuthResponse</span>&gt; <span class="fn">login</span>(<span class="ann">@RequestBody</span> <span class="cls">LoginRequest</span> req) {
+
+        <span class="cm">// ② Database-ල credentials validate — Login-ලදී ONLY DB query!</span>
+        <span class="cls">User</span> user = userService.<span class="fn">authenticate</span>(req.<span class="fn">getUsername</span>(), req.<span class="fn">getPassword</span>());
+
+        <span class="kw">if</span> (user == <span class="bool">null</span>) {
+            <span class="kw">return</span> <span class="cls">ResponseEntity</span>.<span class="fn">status</span>(<span class="cls">HttpStatus</span>.UNAUTHORIZED).<span class="fn">build</span>();
+        }
+
+        <span class="cm">// ③ Valid නම් — Access Token (15min) + Refresh Token (7days) generate</span>
+        <span class="cls">String</span> accessToken  = jwtUtil.<span class="fn">generateAccessToken</span>(user.<span class="fn">getId</span>(), user.<span class="fn">getRole</span>());
+        <span class="cls">String</span> refreshToken = jwtUtil.<span class="fn">generateRefreshToken</span>(user.<span class="fn">getId</span>());
+
+        <span class="cm">// ④ Refresh Token — HttpOnly Secure Cookie-ල (JavaScript-ල access කරන්නට බෑ!)</span>
+        <span class="cls">ResponseCookie</span> cookie = <span class="cls">ResponseCookie</span>.<span class="fn">from</span>(<span class="str">"refreshToken"</span>, refreshToken)
+                .<span class="fn">httpOnly</span>(<span class="bool">true</span>)          <span class="cm">// XSS protection — JS access blocked</span>
+                .<span class="fn">secure</span>(<span class="bool">true</span>)            <span class="cm">// HTTPS only</span>
+                .<span class="fn">sameSite</span>(<span class="str">"Strict"</span>)      <span class="cm">// CSRF protection</span>
+                .<span class="fn">path</span>(<span class="str">"/"</span>)
+                .<span class="fn">maxAge</span>(<span class="cls">Duration</span>.<span class="fn">ofDays</span>(<span class="num">7</span>))
+                .<span class="fn">build</span>();
+
+        <span class="cm">// ⑤ Access Token — Response body-ල (Frontend memory-ල store කරයි)</span>
+        <span class="kw">return</span> <span class="cls">ResponseEntity</span>.<span class="fn">ok</span>()
+                .<span class="fn">header</span>(<span class="cls">HttpHeaders</span>.SET_COOKIE, cookie.<span class="fn">toString</span>())
+                .<span class="fn">body</span>(<span class="kw">new</span> <span class="cls">AuthResponse</span>(accessToken));
+    }
+
+    <span class="cm">// ⑥ POST /api/auth/refresh — Refresh Token-ල Access Token renew</span>
+    <span class="ann">@PostMapping</span>(<span class="str">"/refresh"</span>)
+    <span class="kw">public</span> <span class="cls">ResponseEntity</span>&lt;<span class="cls">AuthResponse</span>&gt; <span class="fn">refresh</span>(<span class="ann">@CookieValue</span>(<span class="str">"refreshToken"</span>) <span class="cls">String</span> refreshToken) {
+        <span class="kw">if</span> (!jwtUtil.<span class="fn">isTokenValid</span>(refreshToken)) {
+            <span class="kw">return</span> <span class="cls">ResponseEntity</span>.<span class="fn">status</span>(<span class="cls">HttpStatus</span>.UNAUTHORIZED).<span class="fn">build</span>();
+        }
+        <span class="cls">String</span> userId = jwtUtil.<span class="fn">extractUserId</span>(refreshToken);
+        <span class="cls">User</span> user = userService.<span class="fn">findById</span>(userId);
+        <span class="cls">String</span> newAccessToken = jwtUtil.<span class="fn">generateAccessToken</span>(userId, user.<span class="fn">getRole</span>());
+        <span class="kw">return</span> <span class="cls">ResponseEntity</span>.<span class="fn">ok</span>(<span class="kw">new</span> <span class="cls">AuthResponse</span>(newAccessToken));
+    }
+}</code></pre>
+        </div>
+        <div id="tc-dto" class="code-pane">
+          <div class="code-header"><span class="code-fname">LoginRequest.java + AuthResponse.java</span>
+            <div style="display:flex;gap:8px;"><span class="code-lang lang-java">JAVA</span><button class="copy-btn"
+                onclick="copyCode('c-dto',this)">Copy</button></div>
+          </div>
+          <pre><code id="c-dto"><span class="cm">// Request DTO — Client-ලා POST කරන data</span>
+<span class="kw">public class</span> <span class="cls">LoginRequest</span> {
+    <span class="kw">private</span> <span class="cls">String</span> username;
+    <span class="kw">private</span> <span class="cls">String</span> password;
+    <span class="cm">// Getters + Setters (හෝ @Data Lombok)</span>
+}
+
+<span class="cm">// Response DTO — Access Token body-ල return</span>
+<span class="kw">public class</span> <span class="cls">AuthResponse</span> {
+    <span class="kw">private</span> <span class="cls">String</span> accessToken;
+
+    <span class="kw">public</span> <span class="cls">AuthResponse</span>(<span class="cls">String</span> accessToken) {
+        <span class="kw">this</span>.accessToken = accessToken;
+    }
+    <span class="kw">public</span> <span class="cls">String</span> <span class="fn">getAccessToken</span>() { <span class="kw">return</span> accessToken; }
+}</code></pre>
+        </div>
+      </div>
+      <div class="explain">
+        <strong>Login Controller — මෙය කරන දේ:</strong>
+        <ul>
+          <li><span class="ln">@PostMapping("/login")</span> Client POST කරන username + password receive.
+            <strong>Database query මෙහිදී පමණයි</strong> — ෆ userService.authenticate() DB-ල credentials check කරනවා.
+          </li>
+          <li><span class="ln">generateAccessToken()</span> Valid user නම් <strong>Access Token (15 min)</strong> +
+            <strong>Refresh Token (7 days)</strong> generate. JwtUtil.java-ල define කළ methods call කරනවා.</li>
+          <li><span class="ln">httpOnly(true)</span> Refresh Token <strong>HttpOnly Secure Cookie</strong> -ල set =
+            JavaScript-ල access කරන්නට නොහැකිය. XSS attack-ලාදී token steal කිරීම prevent.</li>
+          <li><span class="ln">sameSite("Strict")</span> CSRF attack protection. Cross-site request-ලාදී cookie
+            automatic send නොවේ.</li>
+          <li><span class="ln">/refresh endpoint</span> Access Token expire වෙද්දී Refresh Token-ල <strong>user re-login
+              නොකරා</strong> නව Access Token issue. Cookie auto-sent by browser.</li>
+        </ul>
+      </div>
+
+      <!-- STEP D: JWT Filter -->
+      <h3 class="step-h">Step 4 — JWT Filter (සෑම Request-ලාම Intercept + Verify)</h3>
+      <div class="code-tabs">
+        <div class="ctab active" onclick="showTabGrp('td-filt','grp-d',this)">JwtAuthFilter.java</div>
+        <div class="ctab" onclick="showTabGrp('td-sec','grp-d',this)">SecurityConfig.java</div>
+      </div>
+      <div class="code-panel" id="grp-d">
+        <div id="td-filt" class="code-pane active">
+          <div class="code-header"><span class="code-fname">JwtAuthFilter.java</span>
+            <div style="display:flex;gap:8px;"><span class="code-lang lang-java">JAVA</span><button class="copy-btn"
+                onclick="copyCode('c-filt',this)">Copy</button></div>
+          </div>
+          <pre><code id="c-filt"><span class="ann">@Component</span>
+<span class="kw">public class</span> <span class="cls">JwtAuthFilter</span> <span class="kw">extends</span> <span class="cls">OncePerRequestFilter</span> {
+
+    <span class="kw">private final</span> <span class="cls">JwtUtil</span> jwtUtil;
+
+    <span class="ann">@Override</span>
+    <span class="kw">protected void</span> <span class="fn">doFilterInternal</span>(
+            <span class="cls">HttpServletRequest</span> request,
+            <span class="cls">HttpServletResponse</span> response,
+            <span class="cls">FilterChain</span> chain) <span class="kw">throws</span> <span class="cls">IOException</span>, <span class="cls">ServletException</span> {
+
+        <span class="cm">// ① "Authorization: Bearer xxxxx.yyyyy.zzzzz" header extract</span>
+        <span class="cls">String</span> authHeader = request.<span class="fn">getHeader</span>(<span class="str">"Authorization"</span>);
+
+        <span class="kw">if</span> (authHeader == <span class="bool">null</span> || !authHeader.<span class="fn">startsWith</span>(<span class="str">"Bearer "</span>)) {
+            chain.<span class="fn">doFilter</span>(request, response);
+            <span class="kw">return</span>; <span class="cm">// Token නෑ නම් skip — login page etc.</span>
+        }
+
+        <span class="cm">// ② "Bearer " (7 chars) remove → pure JWT token string</span>
+        <span class="cls">String</span> token = authHeader.<span class="fn">substring</span>(<span class="num">7</span>);
+
+        <span class="cm">// ③ Signature verify + expiry check — NO DATABASE CALL!</span>
+        <span class="kw">if</span> (jwtUtil.<span class="fn">isTokenValid</span>(token)) {
+            <span class="cls">String</span> userId = jwtUtil.<span class="fn">extractUserId</span>(token);
+            <span class="cls">String</span> role   = jwtUtil.<span class="fn">extractRole</span>(token);
+
+            <span class="cm">// ④ Spring Security Context-ල authenticated user set</span>
+            <span class="cls">UsernamePasswordAuthenticationToken</span> auth =
+                <span class="kw">new</span> <span class="cls">UsernamePasswordAuthenticationToken</span>(
+                    userId, <span class="bool">null</span>,
+                    <span class="cls">List</span>.<span class="fn">of</span>(<span class="kw">new</span> <span class="cls">SimpleGrantedAuthority</span>(<span class="str">"ROLE_"</span> + role))
+                );
+            <span class="cls">SecurityContextHolder</span>.<span class="fn">getContext</span>().<span class="fn">setAuthentication</span>(auth);
+        }
+
+        chain.<span class="fn">doFilter</span>(request, response);
+    }
+}</code></pre>
+        </div>
+        <div id="td-sec" class="code-pane">
+          <div class="code-header"><span class="code-fname">SecurityConfig.java</span>
+            <div style="display:flex;gap:8px;"><span class="code-lang lang-java">JAVA</span><button class="copy-btn"
+                onclick="copyCode('c-sec',this)">Copy</button></div>
+          </div>
+          <pre><code id="c-sec"><span class="ann">@Configuration</span>
+<span class="ann">@EnableWebSecurity</span>
+<span class="kw">public class</span> <span class="cls">SecurityConfig</span> {
+
+    <span class="kw">private final</span> <span class="cls">JwtAuthFilter</span> jwtAuthFilter;
+
+    <span class="ann">@Bean</span>
+    <span class="kw">public</span> <span class="cls">SecurityFilterChain</span> <span class="fn">securityFilterChain</span>(<span class="cls">HttpSecurity</span> http) <span class="kw">throws</span> <span class="cls">Exception</span> {
+        <span class="kw">return</span> http
+            .<span class="fn">csrf</span>(csrf -> csrf.<span class="fn">disable</span>())
+            .<span class="fn">sessionManagement</span>(sm -> sm
+                <span class="cm">// JWT = Stateless. Server session create නොකරයි!</span>
+                .<span class="fn">sessionCreationPolicy</span>(<span class="cls">SessionCreationPolicy</span>.STATELESS))
+            .<span class="fn">authorizeHttpRequests</span>(auth -> auth
+                .<span class="fn">requestMatchers</span>(<span class="str">"/api/auth/**"</span>).<span class="fn">permitAll</span>()  <span class="cm">// Login = free</span>
+                .<span class="fn">requestMatchers</span>(<span class="str">"/api/admin/**"</span>).<span class="fn">hasRole</span>(<span class="str">"ADMIN"</span>)
+                .<span class="fn">requestMatchers</span>(<span class="str">"/api/bills/**"</span>).<span class="fn">hasAnyRole</span>(<span class="str">"ADMIN"</span>, <span class="str">"CASHIER"</span>)
+                .<span class="fn">anyRequest</span>().<span class="fn">authenticated</span>()
+            )
+            <span class="cm">// JWT Filter — UsernamePasswordAuthenticationFilter-ලට BEFORE</span>
+            .<span class="fn">addFilterBefore</span>(jwtAuthFilter,
+                <span class="cls">UsernamePasswordAuthenticationFilter</span>.<span class="kw">class</span>)
+            .<span class="fn">build</span>();
+    }
+}</code></pre>
+        </div>
+      </div>
+      <div class="explain">
+        <strong>JWT Filter — සෑම API request-ලාම මෙය run වෙනවා:</strong>
+        <ul>
+          <li><span class="ln">OncePerRequestFilter</span> Controller-ලා reach වෙන්නට <strong>කලිනම</strong>
+            JwtAuthFilter run. Authorization header check කරනවා. Login/register endpoints token නැතිව skip.</li>
+          <li><span class="ln">substring(7)</span> Header value = <code
+              style="color:var(--orange);font-size:11px;">"Bearer eyJ..."</code>. "Bearer " = 7 characters. substring(7)
+            = pure JWT token.</li>
+          <li><span class="ln">isTokenValid()</span> <strong>Database query සිදු නොවේ!</strong> JJWT library Secret
+            Key-ල Signature verify + expiry check. ඕනෑ Server-ලා (1, 2, 3) verify කිරීමට හැකිය — Stateless!</li>
+          <li><span class="ln">SecurityContextHolder</span> Valid token නම් userId + role Spring Security Context-ල set.
+            <code style="color:var(--orange);font-size:11px;">@PreAuthorize("hasRole('ADMIN')")</code> annotations ඊට
+            rely කරනවා.</li>
+          <li><span class="ln">STATELESS</span> SecurityConfig-ල SessionCreationPolicy.STATELESS = Server-side session
+            කිසිවිටකත් create නොකිරීමට instruct. JWT-ල essence.</li>
+        </ul>
+      </div>
+
+      <!-- STEP E: Frontend JS -->
+      <h3 class="step-h">Step 5 — Frontend JavaScript / React</h3>
+      <div class="code-tabs">
+        <div class="ctab active" onclick="showTabGrp('te-login','grp-e',this)">login.js</div>
+        <div class="ctab" onclick="showTabGrp('te-api','grp-e',this)">apiService.js</div>
+        <div class="ctab" onclick="showTabGrp('te-http','grp-e',this)">HTTP Example</div>
+      </div>
+      <div class="code-panel" id="grp-e">
+        <div id="te-login" class="code-pane active">
+          <div class="code-header"><span class="code-fname">login.js (React)</span>
+            <div style="display:flex;gap:8px;"><span class="code-lang lang-js">JS</span><button class="copy-btn"
+                onclick="copyCode('c-login',this)">Copy</button></div>
+          </div>
+          <pre><code id="c-login"><span class="kw">const</span> <span class="fn">handleLogin</span> = <span class="kw">async</span> () => {
+    <span class="kw">try</span> {
+        <span class="cm">// ① Backend-ලා credentials POST</span>
+        <span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'/api/auth/login'</span>, {
+            method: <span class="str">'POST'</span>,
+            headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+            body: <span class="cls">JSON</span>.<span class="fn">stringify</span>({ username, password }),
+            credentials: <span class="str">'include'</span>  <span class="cm">// HttpOnly Cookie receive කිරීමට</span>
+        });
+
+        <span class="kw">const</span> data = <span class="kw">await</span> response.<span class="fn">json</span>();
+
+        <span class="cm">// ② Access Token → React state (memory)</span>
+        <span class="cm">// ⚠ localStorage use නොකරන්න — XSS attack risk!</span>
+        <span class="fn">setAccessToken</span>(data.accessToken); <span class="cm">// useState hook</span>
+
+        <span class="cm">// ③ Refresh Token = HttpOnly Cookie-ල auto-saved by browser</span>
+        <span class="cm">// JavaScript-ල access කිරීමට නොහැකිය — secure!</span>
+
+    } <span class="kw">catch</span> (err) {
+        console.<span class="fn">error</span>(<span class="str">'Login failed:'</span>, err);
+    }
+};</code></pre>
+        </div>
+        <div id="te-api" class="code-pane">
+          <div class="code-header"><span class="code-fname">apiService.js</span>
+            <div style="display:flex;gap:8px;"><span class="code-lang lang-js">JS</span><button class="copy-btn"
+                onclick="copyCode('c-api',this)">Copy</button></div>
+          </div>
+          <pre><code id="c-api"><span class="cm">// ① Protected API call — Authorization header-ල Access Token</span>
+<span class="kw">const</span> <span class="fn">getBills</span> = <span class="kw">async</span> (accessToken) => {
+    <span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'/api/bills'</span>, {
+        headers: {
+            <span class="str">'Authorization'</span>: <span class="str">`Bearer <span class="op">${</span>accessToken<span class="op">}</span>`</span>,  <span class="cm">// JWT!</span>
+            <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>
+        },
+        credentials: <span class="str">'include'</span>  <span class="cm">// Cookie auto-include</span>
+    });
+
+    <span class="cm">// ② Access Token expire (401) → Refresh Token-ල renew</span>
+    <span class="kw">if</span> (response.status === <span class="num">401</span>) {
+        <span class="kw">const</span> newToken = <span class="kw">await</span> <span class="fn">refreshAccessToken</span>();
+        <span class="kw">return</span> <span class="fn">getBills</span>(newToken); <span class="cm">// Retry</span>
+    }
+
+    <span class="kw">return</span> response.<span class="fn">json</span>();
+};
+
+<span class="cm">// ③ HttpOnly Cookie-ල Refresh Token auto-sent → new Access Token</span>
+<span class="kw">const</span> <span class="fn">refreshAccessToken</span> = <span class="kw">async</span> () => {
+    <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'/api/auth/refresh'</span>, {
+        method: <span class="str">'POST'</span>,
+        credentials: <span class="str">'include'</span>  <span class="cm">// HttpOnly Cookie auto-sent!</span>
+    });
+    <span class="kw">const</span> data = <span class="kw">await</span> res.<span class="fn">json</span>();
+    <span class="fn">setAccessToken</span>(data.accessToken);
+    <span class="kw">return</span> data.accessToken;
+};</code></pre>
+        </div>
+        <div id="te-http" class="code-pane">
+          <div class="code-header"><span class="code-fname">Actual HTTP Request / Response</span>
+            <div style="display:flex;gap:8px;"><span class="code-lang lang-http">HTTP</span><button class="copy-btn"
+                onclick="copyCode('c-http',this)">Copy</button></div>
+          </div>
+          <pre><code id="c-http"><span class="cm">### 1. Login Request</span>
+<span class="kw">POST</span> /api/auth/login HTTP/1.1
+Host: api.hotelpos.lk
+Content-Type: application/json
+
+{ <span class="str">"username"</span>: <span class="str">"cashier01"</span>, <span class="str">"password"</span>: <span class="str">"securePass123"</span> }
+
+<span class="cm">--- Response (200 OK) ---</span>
+HTTP/1.1 200 OK
+Set-Cookie: refreshToken=eyJ...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800
+Content-Type: application/json
+
+{
+  <span class="str">"accessToken"</span>: <span class="str">"eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiIxMjMiLCJyb2xlIjoiQ0FTSElFUiJ9.abc123"</span>
+}
+
+<span class="cm">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
+
+<span class="cm">### 2. Protected API Request (Access Token)</span>
+<span class="kw">GET</span> /api/bills HTTP/1.1
+Host: api.hotelpos.lk
+<span class="ann">Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiIxMjMiLCJyb2xlIjoiQ0FTSElFUiJ9.abc123</span>
+
+<span class="cm">--- Response (200 OK — No DB Session Check!) ---</span>
+[{ <span class="str">"billId"</span>: <span class="num">1</span>, <span class="str">"amount"</span>: <span class="num">4500.00</span>, <span class="str">"table"</span>: <span class="str">"T-05"</span> }]
+
+<span class="cm">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
+
+<span class="cm">### 3. Refresh (Access Token expire වූ පසු)</span>
+<span class="kw">POST</span> /api/auth/refresh HTTP/1.1
+Host: api.hotelpos.lk
+Cookie: refreshToken=eyJ...  <span class="cm">(HttpOnly — browser auto-sends)</span>
+
+<span class="cm">--- Response (200 OK) ---</span>
+{ <span class="str">"accessToken"</span>: <span class="str">"eyJhbGciOiJIUzI1NiJ9.NEW_TOKEN_HERE.signature"</span> }</code></pre>
+        </div>
+      </div>
+      <div class="explain">
+        <strong>Frontend — Token use කරන ආකාරය:</strong>
+        <ul>
+          <li><span class="ln">setAccessToken()</span> Access Token <strong>React useState (memory)</strong> -ල store.
+            Page refresh-ලා clear — design by intent. <strong>localStorage use නොකිරීම</strong> = XSS attacks-ලාදී
+            JavaScript-ල token read prevent.</li>
+          <li><span class="ln">credentials: 'include'</span> HttpOnly Cookie (Refresh Token) automatically fetch
+            request-ල include කිරීමට browser-ලා instruct. Manual cookie handling නෑ.</li>
+          <li><span class="ln">Authorization: Bearer</span> හැම protected API request-ලාම header-ල JWT. JwtAuthFilter
+            server side-ලා intercept + verify. <strong>Database query නෑ!</strong></li>
+          <li><span class="ln">401 → refresh flow</span> Access Token expire = 401 response. Refresh Token-ල
+            /api/auth/refresh call. User re-login නොකරා new Access Token ලැබෙනවා. Seamless UX!</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ═══ 04 TOKEN LIFETIME ═══ -->
+    <section class="section" id="tokens">
+      <div class="sec-label">04 — Token Lifetime Strategy</div>
+      <div class="timer-card">
+        <div class="tbar-lbl"><span>Access Token — Short lived (15 min)</span><span id="at-val"
+            style="color:var(--green);">15:00 remaining</span></div>
+        <div class="tbar-wrap">
+          <div class="tbar" id="at-bar" style="width:100%;background:linear-gradient(90deg,#34d399,#4f9cf9);"></div>
+        </div>
+        <div class="tbar-val">API requests-ලා. Expire = 15 min. Stolen token-ලා damage window කෙටිය.</div>
+
+        <div class="tbar-lbl"><span>Refresh Token — Long lived (7 days)</span><span style="color:var(--purple);">6d 23h
+            remaining</span></div>
+        <div class="tbar-wrap">
+          <div class="tbar" style="width:98%;background:linear-gradient(90deg,#a78bfa,#4f9cf9);"></div>
+        </div>
+        <div class="tbar-val" style="margin-bottom:8px;">HttpOnly Secure Cookie-ල. Access Token renew කිරීමට.</div>
+
+        <div class="tf">
+          <div class="tf-box tf-a">Access Token expires</div>
+          <span style="color:var(--muted);font-size:12px;">→</span>
+          <div class="tf-box tf-r">Send Refresh Token</div>
+          <span style="color:var(--muted);font-size:12px;">→</span>
+          <div class="tf-box tf-a">New Access Token</div>
+          <span style="color:var(--muted);font-size:12px;font-family:'JetBrains Mono',monospace;">No re-login! ✓</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:14px;line-height:1.7;">
+          Access Token expire වෙද්දී bar <span style="color:var(--red);">red</span>-ලා turn වෙනවා. Automatically reset
+          වෙලා Refresh Token flow simulate කරනවා.
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 05 STORAGE ═══ -->
+    <section class="section" id="storage">
+      <div class="sec-label">05 — Token Storage Best Practice</div>
+      <div class="g2">
+        <div class="warn-box" style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.22);">
+          <div style="font-size:20px;flex-shrink:0;">⚠️</div>
+          <div class="warn-text">
+            <strong>LocalStorage — භාවිතා නොකරන්න!</strong><br>
+            XSS attack-ලාදී hacker-ලාට JavaScript inject කරලා <code
+              style="font-family:'JetBrains Mono',monospace;color:var(--red);">localStorage.getItem('token')</code> call
+            කරලා token steal කිරීමට හැකිය.
+            <div
+              style="font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:10px;padding:8px 12px;background:rgba(248,113,113,.08);border-radius:6px;color:var(--red);">
+              ❌ localStorage.setItem('accessToken', token)</div>
+          </div>
+        </div>
+        <div class="warn-box" style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.22);">
+          <div style="font-size:20px;flex-shrink:0;">✅</div>
+          <div class="warn-text">
+            <strong>HttpOnly Cookie + Memory — නිවැරදි ක්‍රමය</strong><br>
+            Refresh Token = <strong>HttpOnly Cookie</strong> (JS access නෑ). Access Token = <strong>React
+              useState</strong> memory (page refresh-ලා clear).
+            <div
+              style="font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:10px;padding:8px 12px;background:rgba(52,211,153,.08);border-radius:6px;color:var(--green);">
+              ✓ const [accessToken, setAccessToken] = useState(null)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 06 COMPARE ═══ -->
+    <section class="section" id="compare">
+      <div class="sec-label">06 — Session-Based vs JWT</div>
+      <div class="g2">
+        <div class="cmp-card bad">
+          <div class="cmp-title" style="color:var(--red);">✗ Session-Based (Old)</div>
+          <ul class="cmp-list">
+            <li>Server memory/DB-ල session store</li>
+            <li>Server 1-ල login → Server 2-ල fail</li>
+            <li>Load balancing = Redis extra</li>
+            <li>Mobile apps-ල cookies fail</li>
+            <li>CORS cross-origin issues</li>
+            <li>හැම request-ලාම DB session lookup</li>
+          </ul>
+        </div>
+        <div class="cmp-card good">
+          <div class="cmp-title" style="color:var(--green);">✓ JWT / Token-Based (Modern)</div>
+          <ul class="cmp-list">
+            <li>Server-side state නෑ — Stateless</li>
+            <li>ඕනෑ Server verify කරනවා — Scale freely</li>
+            <li>Extra infrastructure නෑ</li>
+            <li>React, Next.js, Mobile — perfect</li>
+            <li>CORS friendly — Authorization header</li>
+            <li>Login-ලදී DB, ඉන් පසු Signature only</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ 07 BEST PRACTICES ═══ -->
+    <section class="section" id="practices">
+      <div class="sec-label">07 — Best Practices</div>
+      <div class="g3">
+        <div class="bp">
+          <div class="bp-num">01</div>
+          <div class="bp-title">🚫 Sensitive Data එපා</div>
+          <div class="bp-text">Payload Base64 decode කරන්නට හැකිය. Passwords, Card numbers JWT-ල නෑ. User ID, Role only.
+          </div>
+        </div>
+        <div class="bp">
+          <div class="bp-num">02</div>
+          <div class="bp-title">🔑 Strong Secret Key</div>
+          <div class="bp-text">256-bit+ random. Hardcode නෑ. .env file. Production-ල rotate. application.properties-ල
+            @Value inject.</div>
+        </div>
+        <div class="bp">
+          <div class="bp-num">03</div>
+          <div class="bp-title">⏰ Short Access Token</div>
+          <div class="bp-text">15 min expiry. Stolen token damage window කෙටිය. Refresh Token-ල seamlessly renew.</div>
+        </div>
+        <div class="bp">
+          <div class="bp-num">04</div>
+          <div class="bp-title">🍪 HttpOnly Cookie</div>
+          <div class="bp-text">Refresh Token HttpOnly Secure Cookie-ල. JS access blocked = XSS protection.
+            SameSite=Strict = CSRF protection.</div>
+        </div>
+        <div class="bp">
+          <div class="bp-num">05</div>
+          <div class="bp-title">📚 Library Use</div>
+          <div class="bp-text">io.jsonwebtoken (Spring) / jsonwebtoken (Node). Manual JWT implementation =
+            vulnerabilities risk. Library use = safe.</div>
+        </div>
+        <div class="bp">
+          <div class="bp-num">06</div>
+          <div class="bp-title">🔄 Token Rotation</div>
+          <div class="bp-text">Refresh Token use-ලා නව Refresh Token issue කරලා old invalidate. Replay attacks prevent.
+            DB-ල revocation list.</div>
+        </div>
+      </div>
+    </section>
+
+    <footer>JWT (RFC 7519) · HMAC-SHA256 · io.jsonwebtoken 0.12.3 · Spring Boot Security · Stateless Auth · React
+    </footer>
+
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+
+</html>
